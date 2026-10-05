@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Şifre Sıfırla | Olympos</title>
+<style>
+  body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8f3e8;color:#2a2520}
+  .kart{width:100%;max-width:420px;margin:24px;padding:32px 26px;background:#fff;border-radius:20px;box-shadow:0 8px 30px rgba(30,111,168,.15)}
+  h1{margin:0 0 6px;color:#1e6fa8;font-size:22px;text-align:center}
+  p{line-height:1.5;margin:8px 0;text-align:center}
+  label{display:block;font-size:13px;font-weight:600;color:#7a6f5c;margin:16px 0 6px}
+  input{width:100%;box-sizing:border-box;padding:12px 14px;font-size:16px;border:1px solid #ddd3c0;border-radius:10px}
+  button{width:100%;margin-top:20px;padding:14px;font-size:16px;font-weight:700;color:#fff;background:#1e6fa8;border:0;border-radius:10px;cursor:pointer}
+  button:disabled{opacity:.6}
+  .hata{color:#c1443a;font-size:14px;margin-top:12px;text-align:center}
+  .tamam{color:#3f6b3a}
+  .gizli{display:none}
+</style>
+</head>
+<body>
+<div class="kart">
+  <h1>Yeni şifre belirle</h1>
+  <p id="durum">Bağlantı kontrol ediliyor...</p>
+
+  <form id="form" class="gizli">
+    <label for="s1">Yeni şifre</label>
+    <input id="s1" type="password" minlength="6" autocomplete="new-password" required>
+    <label for="s2">Yeni şifre (tekrar)</label>
+    <input id="s2" type="password" minlength="6" autocomplete="new-password" required>
+    <button id="kaydet" type="submit">Şifreyi Kaydet</button>
+    <div id="hata" class="hata"></div>
+  </form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = "https://zfpktmzfprspyoeclpyj.supabase.co";
+  // Herkese açık (anon) istemci anahtarı; uygulamada da aynısı kullanılıyor.
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpmcGt0bXpmcHJzcHlvZWNscHlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxNzc0ODUsImV4cCI6MjEwNTc1MzQ4NX0.LmHp5clDqksCj4Rnb7CUiknSpf0K9zR4dfqSxmrqyfY";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const durum = document.getElementById("durum");
+  const form = document.getElementById("form");
+  const hata = document.getElementById("hata");
+  let hazir = false;
+
+  function formuGoster() {
+    hazir = true;
+    durum.textContent = "En az 6 karakterli yeni bir şifre yaz.";
+    form.classList.remove("gizli");
+    // Adres çubuğundaki oturum bilgisini temizle.
+    history.replaceState(null, "", location.pathname);
+  }
+
+  sb.auth.onAuthStateChange((olay) => {
+    if (olay === "PASSWORD_RECOVERY") formuGoster();
+  });
+
+  // Bağlantı geçerliyse kısa süre içinde PASSWORD_RECOVERY olayı gelir.
+  setTimeout(async () => {
+    if (hazir) return;
+    const { data } = await sb.auth.getSession();
+    if (data.session) formuGoster();
+    else durum.textContent = "Bu bağlantı geçersiz ya da süresi dolmuş. Uygulamadan yeniden \"Şifremi unuttum\" ile yeni bir bağlantı iste.";
+  }, 2500);
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    hata.textContent = "";
+    const s1 = document.getElementById("s1").value;
+    const s2 = document.getElementById("s2").value;
+    if (s1 !== s2) { hata.textContent = "Şifreler aynı değil."; return; }
+    const dugme = document.getElementById("kaydet");
+    dugme.disabled = true;
+    const { error } = await sb.auth.updateUser({ password: s1 });
+    if (error) { hata.textContent = error.message; dugme.disabled = false; return; }
+    await sb.auth.signOut();
+    form.classList.add("gizli");
+    durum.innerHTML = '<span class="tamam"><b>Şifren güncellendi.</b></span><br>Şimdi <b>Olympos</b> uygulamasına dönüp yeni şifrenle giriş yapabilirsin.';
+  });
+</script>
+</body>
+</html>
